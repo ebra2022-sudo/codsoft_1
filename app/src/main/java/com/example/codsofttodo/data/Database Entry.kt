@@ -1,7 +1,8 @@
-package com.example.todolist.data
+package com.example.codsofttodo.data
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import java.time.LocalDateTime
 
 /*Entity Annotation: The @Entity annotation on the TodoEntry class
  informs Room to recognize this data class as a database table(Raw). Its
@@ -16,8 +17,15 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "Todos")
 data class ToDoEntry(
     var title: String,
-    var description: String?,
+    var setDate:String,
     var isDone: Boolean,
-    var duration: Int,
+    var timeState: TimeState,
+    var repeat: String,
+    var listType: String,
     @PrimaryKey(autoGenerate = true) val id: Int = 0
 )
+
+enum class TimeState {
+    Overdue, Today, Tomorrow,NextWeek, NextMonth, Later, NoDate
+}
+

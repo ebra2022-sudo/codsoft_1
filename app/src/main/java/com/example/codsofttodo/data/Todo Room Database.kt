@@ -1,4 +1,4 @@
-package com.example.todolist.data
+package com.example.codsofttodo.data
 
 import android.content.Context
 import androidx.room.Database
@@ -6,10 +6,9 @@ import androidx.room.RoomDatabase
 import androidx.room.Room
 
 
-
 @Database(
     entities = [ToDoEntry:: class],
-    version = 1
+    version = 2
 )
 
 abstract class TodoRoomDatabase: RoomDatabase()

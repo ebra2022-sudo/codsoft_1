@@ -93,7 +93,12 @@ fun NewTaskScreen(navController: NavController, todoViewModel: TodoViewModel) {
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-
+                    if (todoViewModel.forEdit) {
+                        todoViewModel.onEdit()
+                        todoViewModel.forEdit = false
+                    }
+                    else todoViewModel.insertTodo()
+                    navController.navigate("todo list Screen")
                 }
             ) {
                 Icon(imageVector = Icons.Default.Check, contentDescription = null)
@@ -137,8 +142,10 @@ fun NewTaskScreen(navController: NavController, todoViewModel: TodoViewModel) {
                 datepicker(
                     initialDate = LocalDate.now(),
                     title = "Pick a date"
-                ) {localDate ->
+                ) {
+                    localDate ->
                     pickedDate = localDate
+                    todoViewModel.pickedDateTime = todoViewModel.mergeTimeSndDate(date = localDate, time = LocalTime.now())
                 }
             }
 
@@ -157,6 +164,8 @@ fun NewTaskScreen(navController: NavController, todoViewModel: TodoViewModel) {
                     onCancel = { showTimePicker.value = false },
                     onConfirm = {
                         setTime.value = LocalTime.of(timePickerState.hour, timePickerState.minute)
+                        todoViewModel.pickedDateTime =
+                            todoViewModel.mergeTimeSndDate(date = pickedDate, time =LocalTime.of(timePickerState.hour, timePickerState.minute))
                         showTimePicker.value = false },
                     content = {displayMode ->
                         val calendar = Calendar.getInstance()
@@ -484,23 +493,29 @@ fun CustomDropDownMenu(
         }
         ExposedDropdownMenu(expanded = expanded,
             onDismissRequest = onDismissedRequest,
-            modifier = Modifier.background(MaterialTheme.colorScheme.inversePrimary).width(200.dp)) {
+            modifier = Modifier
+                .background(MaterialTheme.colorScheme.secondaryContainer)
+                .width(200.dp)) {
             topComposable()
-            options.forEach { option: String ->
+            options.toSet().forEach { option: String ->
                 DropdownMenuItem(
                     text = { Row(horizontalArrangement = Arrangement.spacedBy(5.dp),
-                        verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                        verticalAlignment = Alignment.CenterVertically, modifier = Modifier
+                            .fillMaxSize()
+                            .background(color = if (selectedList == option) MaterialTheme.colorScheme.secondary else Color.Transparent)) {
                         if (addLeadingIcon) Icon(painter = painterResource(id = R.drawable.menu), contentDescription =null )
-                        Text(text = option)
+                        Text(text = option, fontWeight = FontWeight.Medium)
                     } },
                     onClick = {
                         onItemClicked(option)
                         onDismissedRequest()
                     },
-                    colors = if (selectedList == option )
-                        MenuDefaults.itemColors(textColor = Color.Blue)
-                    else MenuDefaults.itemColors(textColor = Color.White)
+                    colors =
+                    if (selectedList == option)
+                        MenuDefaults.itemColors(textColor = MaterialTheme.colorScheme.onSecondary)
+                    else MenuDefaults.itemColors(MaterialTheme.colorScheme.secondary)
                 )
+                HorizontalDivider(modifier = Modifier.fillMaxWidth())
             }
             bottomComposable()
         }

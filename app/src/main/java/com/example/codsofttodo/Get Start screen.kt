@@ -86,7 +86,7 @@ fun GetStartScreen(modifier: Modifier = Modifier, navController: NavController) 
                             MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary
                         )
                     )
-                ).clickable { navController.navigate("new task")}
+                ).clickable { navController.navigate("todo list Screen")}
             ) {
                 Text(text = "Get Started", modifier = Modifier.padding(15.dp),
                     color = MaterialTheme.colorScheme.onPrimary)
