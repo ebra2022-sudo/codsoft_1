@@ -17,6 +17,15 @@ composable is the current destination.
  */
 @Composable
 fun ScreenContainer() {
+    val owner = LocalViewModelStoreOwner.current
+    owner?.let {
+        val viewModel: TodoViewModel = viewModel(
+            it,
+            "TodoViewModel",
+            MainViewModelFactory(
+                LocalContext.current.applicationContext as Application
+            )
+        )
     
     val navController = rememberNavController() // this function creates the navController instance
     NavHost(navController = navController , startDestination = "get started" ) {
@@ -24,21 +33,12 @@ fun ScreenContainer() {
             GetStartScreen(navController = navController)
         }
         composable("todo screen") {
-            TodoScreen()
+
         }
         composable("new task") {
-            NewTaskScreen(navController = navController)
+            NewTaskScreen(navController = navController, todoViewModel = viewModel)
         }
         composable("todo list Screen") {
-            val owner = LocalViewModelStoreOwner.current
-            owner?.let {
-                val viewModel: TodoViewModel = viewModel(
-                    it,
-                    "TodoViewModel",
-                    MainViewModelFactory(
-                        LocalContext.current.applicationContext as Application
-                    )
-                )
                 ScreenSetUp(mainViewModel = viewModel, navController = navController)
             }
             
