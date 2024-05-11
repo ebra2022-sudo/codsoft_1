@@ -1,10 +1,10 @@
 package com.example.codsofttodo
 
 import android.app.Application
+import android.content.Context
+import android.content.SharedPreferences
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 
 class TodoViewModel(application: Application): ViewModel(){
     val todos: LiveData<List<ToDoEntry>>
@@ -30,17 +31,41 @@ class TodoViewModel(application: Application): ViewModel(){
     var showAddListDialogueOnHome by mutableStateOf(false)
     var showMoreAction by mutableStateOf(false)
     var showRepeatMenu by mutableStateOf(false)
-    var currentToDoEntry by mutableStateOf(ToDoEntry(title= "", setDate = "",
+
+    var showSearchBar by  mutableStateOf(false)
+    var groupedItem by  mutableStateOf<List<ToDoEntry>>(emptyList())
+    var forFilter by mutableStateOf(false)
+    var forComplete by mutableStateOf(false)
+
+    val onShowSearchBar = {showSearchBar = !showSearchBar}
+
+    var currentToDoEntry by mutableStateOf(ToDoEntry(title= "", setDate = LocalDateTime.of(LocalDate.now(),LocalTime.now()),
         isDone = false, timeState = TimeState.NoDate, repeat = "", listType = ""))
 
-    var forEdit by   mutableStateOf(false)
+    var forEdit by mutableStateOf(false)
+    private val sharedPreferences: SharedPreferences = application.getSharedPreferences("TodoPrefs", Context.MODE_PRIVATE)
+
+    private val _listType = MutableStateFlow(loadListType())
+    val listType = _listType.asStateFlow()
 
 
+    private fun saveListType(list: List<String>) {
+        val editor = sharedPreferences.edit()
+        editor.putString("listType", list.joinToString(","))
+        editor.apply()
+    }
 
+    private fun loadListType(): MutableList<String> {
+        val savedList = sharedPreferences.getString("listType", null)
+        return savedList?.split(",")?.toMutableList() ?: mutableListOf("Default", "Completed")
+    }
+    fun onAddListMenu() {
+        val currentList = _listType.value.toMutableList()
+        currentList.add(list)
+        _listType.value = currentList
+        saveListType(currentList)
+    }
 
-    private val _listType = MutableStateFlow(mutableListOf("Default", "Completed"))
-    val listType: StateFlow<MutableList<String>>
-        get() = _listType.asStateFlow()
 
     private val _repeats =
         MutableStateFlow(mutableListOf("No repeat", "Once a Day",
@@ -55,7 +80,7 @@ class TodoViewModel(application: Application): ViewModel(){
         get() = _actions.asStateFlow()
 
     var selectedListTypeOnNewTask by mutableStateOf(_listType.value[0])
-    var selectedListTypeOnHome by mutableStateOf(_listType.value[0])
+    var selectedListTypeOnHome by mutableStateOf("All Lists")
     var selectedRepeatType by mutableStateOf(_repeats.value[0])
     var selectedActionType by mutableStateOf(_actions.value[0])
     var pickedDateTime by mutableStateOf<LocalDateTime?>(null)
@@ -68,7 +93,7 @@ class TodoViewModel(application: Application): ViewModel(){
     val onShowRepeatMenu = {flag: Boolean -> showRepeatMenu = !showRepeatMenu}
     val onShowMoreAction = {flag: Boolean -> showMoreAction = !showMoreAction}
     val onShowAddListDialogOnNewTask = {showAddListDialogueOnNewTask =!showAddListDialogueOnNewTask}
-
+    val onShowAddListDialogOnHome = {showAddListDialogueOnHome =!showAddListDialogueOnHome}
 
 
     val title: String
@@ -79,24 +104,26 @@ class TodoViewModel(application: Application): ViewModel(){
     val list: String
         get() = _list
     val onListChange = { new: String -> _list = new }
-    fun onAddListMenu() {
-        _listType.value.add(list.trim())
-    }
 
     private var _search by mutableStateOf("")
     val search: String
         get() = _search
     val onSearchChange = { new: String -> _search = new }
 
-    var date by mutableStateOf("Date not set")
-    var time by mutableStateOf("Time not set")
+    var formatDate by mutableStateOf("Date not set")
+    var formatTime by mutableStateOf("Time not set")
 
+    fun onCheck(check: Boolean) {
+        repository.updateEntityField(
+            entityId = currentToDoEntry.id,
+            title = currentToDoEntry.title,
+            setDate = currentToDoEntry.setDate,
+            timeState = currentToDoEntry.timeState,
+            repeat = currentToDoEntry.repeat,
+            listType = currentToDoEntry.listType,
+            isDone = check
 
-    private var _duration by mutableStateOf("0")
-
-
-    fun onCheck(current: ToDoEntry) {
-        repository.onCheckTodo(current.id)
+        )
     }
 
     init {
@@ -105,24 +132,19 @@ class TodoViewModel(application: Application): ViewModel(){
         repository = TodoRepository(todoDao)
         todos = repository.allTodos
     }
-    private fun isValidDuration(s: String): Boolean  {
-        val isValid = true
-        for (i in s) {
-            if (!i.isDigit()) return false
-        }
-        return isValid
-    }
+
 
     fun insertTodo() {
         val newToDoEntry = ToDoEntry(
             title = title,
-            setDate = pickedDateTime.toString(),
+            setDate = pickedDateTime,
             isDone = false,
             repeat = selectedRepeatType,
             listType = selectedListTypeOnNewTask,
             timeState = timeState(pickedDateTime?.toLocalDate())
             )
         repository.insertTodo(newToDoEntry)
+        updateEntryFieldForAdd()
     }
 
     private fun timeState(date: LocalDate?): TimeState {
@@ -137,18 +159,32 @@ class TodoViewModel(application: Application): ViewModel(){
         }
     }
 
-    fun mergeTimeSndDate(date: LocalDate? = null, time: LocalTime? = null): LocalDateTime? {
+    fun mergeTimeAndDate(date: LocalDate? = null, time: LocalTime? = null): LocalDateTime? {
         return LocalDateTime.of(date, time)
     }
-
-
 
     fun deleteTodo(toDoEntry: ToDoEntry) {
         repository.deleteTodo(toDoEntry)
     }
-    fun updateEntryField(toDoEntry: ToDoEntry) {
+    fun updateEntryFieldForEdit(toDoEntry: ToDoEntry) {
         _title = toDoEntry.title
         selectedRepeatType = toDoEntry.repeat
+        pickedDateTime = toDoEntry.setDate
+        selectedListTypeOnNewTask = toDoEntry.listType
+        formatDate = if (pickedDateTime == null) "Date not set"
+        else DateTimeFormatter.ofPattern("EEE, d MMM yyyy").format(pickedDateTime)
+        formatTime = if (pickedDateTime == null) "Time not set"
+        else DateTimeFormatter.ofPattern("h:mm a").format(pickedDateTime)
+    }
+    fun updateEntryFieldForAdd() {
+        _title = ""
+        selectedRepeatType = repeats.value[0]
+        pickedDateTime = null
+        selectedListTypeOnNewTask = listType.value[0]
+        formatDate = if (pickedDateTime == null) "Date not set"
+        else DateTimeFormatter.ofPattern("EEE, d MMM yyyy").format(pickedDateTime)
+        formatTime = if (pickedDateTime == null) "Time not set"
+        else DateTimeFormatter.ofPattern("h:mm a").format(pickedDateTime)
     }
     fun onEdit() {
         repository.updateEntityField(
@@ -156,12 +192,25 @@ class TodoViewModel(application: Application): ViewModel(){
             title = title,
             setDate = pickedDateTime,
             timeState= timeState(pickedDateTime?.toLocalDate()),
-            repeat = selectedRepeatType
+            repeat = selectedRepeatType,
+            listType = selectedListTypeOnNewTask,
+            isDone = currentToDoEntry.isDone
         )
+        updateEntryFieldForAdd()
     }
 
     fun searchByTitle(title: String): MutableLiveData<List<ToDoEntry>> {
         repository.searchByName(title)
         return repository.searchResults
+    }
+
+    fun searchByListType(listType: String): MutableLiveData<List<ToDoEntry>> {
+        repository.getTodosByListType(listType)
+        return repository.currentListTypeTodos
+    }
+
+    fun completedTodos(): MutableLiveData<List<ToDoEntry>> {
+        repository.getCompletedTodos()
+        return repository.completedTodos
     }
 }

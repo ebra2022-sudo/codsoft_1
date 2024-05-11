@@ -1,4 +1,5 @@
 [versions]
+accompanistPermissions = "0.31.1-alpha"
 agp = "8.3.2"
 datetimeVersion = "0.8.1-rc"
 kotlin = "1.9.23"
@@ -14,10 +15,13 @@ composeBom = "2024.05.00"
 roomRuntime = "2.6.1"
 runtimeLivedata = "1.6.7"
 ksp = "1.9.0-1.0.13"
+workRuntime = "2.9.0"
 
 [libraries]
+accompanist-permissions = { module = "com.google.accompanist:accompanist-permissions", version.ref = "accompanistPermissions" }
 androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref ="navigationCompose" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-work-runtime = { module = "androidx.work:work-runtime", version.ref = "workRuntime" }
 compose-material-dialogs-datetime = { module = "io.github.vanpra.compose-material-dialogs:datetime", version.ref = "datetimeVersion" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }

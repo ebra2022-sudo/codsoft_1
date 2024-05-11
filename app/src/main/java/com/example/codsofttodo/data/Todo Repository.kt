@@ -11,6 +11,8 @@ import java.time.LocalDateTime
 
 class TodoRepository(private val databaseOperations: DataBaseOperations) {
     val searchResults = MutableLiveData<List<ToDoEntry>>()
+    val completedTodos = MutableLiveData<List<ToDoEntry>>()
+    val currentListTypeTodos = MutableLiveData<List<ToDoEntry>>()
 
     // to access the updated database records.
     val allTodos: LiveData<List<ToDoEntry>> = databaseOperations.getAllTodos()
@@ -33,14 +35,26 @@ class TodoRepository(private val databaseOperations: DataBaseOperations) {
             searchResults.value = asyncFind(name).await()
         }
     }
+    fun getCompletedTodos() {
+        coroutineScope.launch {
+            completedTodos.value = asyncFindCompleted().await()
+        }
+    }
 
+    fun getTodosByListType(listType: String) {
+        coroutineScope.launch {
+            currentListTypeTodos.value = asyncFindListType(listType).await()
+        }
+    }
 
     fun updateEntityField(
         entityId: Int,
         title: String,
+        isDone: Boolean,
         setDate: LocalDateTime?,
         timeState: TimeState,
-        repeat: String ) {
+        repeat: String,
+        listType: String) {
         coroutineScope.launch(Dispatchers.IO) {
             // Retrieve the entity from the database
             var entity = databaseOperations.selectToDoById(entityId).first()
@@ -48,9 +62,11 @@ class TodoRepository(private val databaseOperations: DataBaseOperations) {
             // Modify the field value of the retrieved entity
             entity = entity.copy(
                 title = title,
-                setDate = setDate.toString(),
+                setDate = setDate,
+                isDone =isDone,
                 timeState = timeState,
-                repeat = repeat)
+                repeat = repeat,
+                listType = listType)
 
             // Update the entity in the database with the modified field value
             databaseOperations.update(entity)
@@ -58,19 +74,21 @@ class TodoRepository(private val databaseOperations: DataBaseOperations) {
         // SAMPLE OF THE GIVEN VALUE OF THE CODE OF THE SAMPLE OF THE GV
     }
 
-    fun onCheckTodo(entityId: Int) {
-        coroutineScope.launch(Dispatchers.IO) {
-            var entity = databaseOperations.selectToDoById(entityId).first()
-            entity = entity.copy(isDone = !entity.isDone)
-            databaseOperations.update(entity)
-        }
-    }
     // generic function for search async
-    private fun <T> asyncFind(key: T): Deferred<List<ToDoEntry>?> =
+    private fun  asyncFind(key: String): Deferred<List<ToDoEntry>?> =
+        coroutineScope.async(Dispatchers.IO) {
+            return@async databaseOperations.selectToDoByTitle(key)
+        }
+    private fun <T> asyncFindListType(key: T): Deferred<List<ToDoEntry>?> =
         coroutineScope.async(Dispatchers.IO) {
             return@async when (key) {
-                is String -> databaseOperations.selectToDoByTitle(key)
+                is String -> databaseOperations.selectToDoByListType(key)
                 else -> databaseOperations.selectToDoById(key as Int)
             }
         }
+    private fun  asyncFindCompleted(): Deferred<List<ToDoEntry>?> =
+        coroutineScope.async(Dispatchers.IO) {
+            return@async databaseOperations.getCompletedTodos(true)
+        }
+
 }

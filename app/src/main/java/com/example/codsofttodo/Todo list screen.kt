@@ -1,5 +1,12 @@
 package com.example.codsofttodo
 
+import android.Manifest
+import android.app.Application
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
@@ -9,8 +16,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -36,7 +45,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
@@ -47,8 +58,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -56,20 +69,34 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.codsofttodo.data.TimeState
 import com.example.codsofttodo.data.ToDoEntry
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
+import java.time.format.DateTimeFormatter
 
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
-fun TodoScreen(
+fun TodoScreen( 
     modifier: Modifier = Modifier,
     todoViewModel: TodoViewModel,
     allProducts: List<ToDoEntry>,
-    navController: NavController
+    navController: NavController,
+    context: Context
 ) {
+    val postNotificationPermission= rememberPermissionState(permission = Manifest.permission.POST_NOTIFICATIONS)
+    val todoNotificationService= TodoNotificationService(context)
+    LaunchedEffect(key1 = true ){
+        if(!postNotificationPermission.status.isGranted){
+            postNotificationPermission.launchPermissionRequest()
+        }
+    }
+
     val searchResults = todoViewModel.searchByTitle(todoViewModel.search).observeAsState().value?: emptyList()
+    val currentListTypeResult = todoViewModel.searchByListType(todoViewModel.selectedListTypeOnHome).observeAsState().value?: emptyList()
+    val completedTodos = todoViewModel.completedTodos().observeAsState().value?: emptyList()
     val listType = todoViewModel.listType.collectAsState().value
     val actions = todoViewModel.actions.collectAsState().value
-    var showSearchBar by remember { mutableStateOf(false) }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
         modifier = Modifier
@@ -78,17 +105,18 @@ fun TodoScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    if(showSearchBar) {
+                    if(todoViewModel.showSearchBar) {
                         Row(modifier = Modifier
                             .fillMaxSize(),
                             verticalAlignment = Alignment.CenterVertically){
                             IconButton(onClick = {
-                                showSearchBar = !showSearchBar
+                                todoViewModel.onShowSearchBar
                                 todoViewModel.searchByTitle(todoViewModel.search)
                             }) {
                                 Icon(imageVector = Icons.Default.Search, contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onPrimary)
                             }
+                            // aple of the given vaue of the
                             Column {
                                 BasicTextField(
                                     value = todoViewModel.search,
@@ -120,6 +148,8 @@ fun TodoScreen(
                                             .clickable {
                                                 todoViewModel.selectedListTypeOnHome =
                                                     "All Lists"
+                                                todoViewModel.forFilter = false
+                                                todoViewModel.forComplete = false
                                                 todoViewModel.showListMenuOnHome = false
                                             },
                                         horizontalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -142,7 +172,8 @@ fun TodoScreen(
                                                 .clickable {
                                                     todoViewModel.selectedListTypeOnHome =
                                                         "Finished"
-                                                    todoViewModel.showListMenuOnHome = false
+                                                    todoViewModel.forFilter = false
+                                                    todoViewModel.forComplete = true
                                                 },
                                             horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                                             Icon(
@@ -156,8 +187,21 @@ fun TodoScreen(
                                         Row(verticalAlignment = Alignment.CenterVertically,
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .clickable { todoViewModel.showAddListDialogueOnHome },
+                                                .clickable {
+                                                    todoViewModel.showAddListDialogueOnHome = true
+                                                },
                                             horizontalArrangement = Arrangement.spacedBy(5.dp)){
+                                            NewListDialogue(
+                                                showDialogue = todoViewModel.showAddListDialogueOnHome,
+                                                onDismiss = {todoViewModel.onShowAddListDialogOnHome},
+                                                value = todoViewModel.list,
+                                                onValueChange = todoViewModel.onListChange ,
+                                                onAdd = {
+                                                    todoViewModel.onAddListMenu()
+                                                    todoViewModel.showAddListDialogueOnHome = false
+                                                todoViewModel.showListMenuOnHome = false}) {
+                                                todoViewModel.showAddListDialogueOnHome = false
+                                            }
                                             Icon(
                                                 painter = painterResource(id = R.drawable.playlist_plus),
                                                 contentDescription = null,
@@ -172,6 +216,7 @@ fun TodoScreen(
                                 options = listType
                             ) { selectedList ->
                                 todoViewModel.selectedListTypeOnHome = selectedList
+                                todoViewModel.forFilter = true
                             }
                             IconButton(
                                 onClick = { todoViewModel.showListMenuOnHome = true },
@@ -190,9 +235,9 @@ fun TodoScreen(
                     titleContentColor = MaterialTheme.colorScheme.onPrimary),
                 scrollBehavior = scrollBehavior,
                 actions = {
-                    if (!showSearchBar) {
+                    if (!todoViewModel.showSearchBar) {
                         IconButton(onClick = {
-                            showSearchBar = true
+                            todoViewModel.showSearchBar = true
                             todoViewModel.searchByTitle(todoViewModel.search)
                         }) {
                             Icon(imageVector = Icons.Default.Search, contentDescription = null,
@@ -214,71 +259,103 @@ fun TodoScreen(
                             addLeadingIcon = false
                         ) {selectedAction ->
                             todoViewModel.selectedActionType = selectedAction
+                            if (selectedAction == "More Apps") {
+                                val intent = Intent(Intent.ACTION_VIEW)
+                                intent.data = Uri.parse("https://play.google.com/")
+                                context.startActivity(intent)
+                            }
                         }
                     }
                 },
-                navigationIcon = { if (showSearchBar) {
+                navigationIcon = { if (todoViewModel.showSearchBar) {
                     IconButton(onClick = {
-                        showSearchBar = false
+                        todoViewModel.showSearchBar = false
                         todoViewModel.searchByTitle(todoViewModel.search)
                     }) {
                         Icon(painter = painterResource(id = R.drawable.arrow_left),
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onPrimary)
                     }
-
                 }
-                else Icon(painter = painterResource(id = R.drawable.check_circle),
-                    contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)})
+                else IconButton(onClick = {
+                    todoNotificationService.showExpandableNotification()
+                }) {
+                    Icon(painter = painterResource(id = R.drawable.check_circle),
+                        contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)}
+                })
 
         },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
                     navController.navigate("new task")
+                    todoViewModel.updateEntryFieldForAdd()
                 }
             ) {
                 Icon(imageVector = Icons.Default.Add, contentDescription = null)
             }
         }
     ){
-        var groupedItem by remember { mutableStateOf(allProducts.groupBy { toDo: ToDoEntry -> toDo.timeState }) }
-        if (showSearchBar) {
-            groupedItem = searchResults.groupBy { toDo: ToDoEntry -> toDo.timeState }
+        todoViewModel.groupedItem = if (todoViewModel.showSearchBar) {
+            searchResults
         }
-        else allProducts.groupBy {toDo: ToDoEntry -> toDo.timeState}
+        else if (todoViewModel.forFilter){
+            currentListTypeResult
+        }
+        else if (todoViewModel.forComplete) {
+            completedTodos
+        }
+        else
+        {
+            allProducts
+        }
         LazyColumn(modifier = Modifier
             .padding(it)
             .fillMaxSize()
             .padding(horizontal = 10.dp)
-            .then(modifier), verticalArrangement = Arrangement.spacedBy(10.dp),
-            reverseLayout = true) {
+            .then(modifier), verticalArrangement = Arrangement.spacedBy(3.dp)) {
 
-
-            groupedItem.forEach {(timeState, entities) ->
+            todoViewModel.groupedItem.groupBy { it.timeState }.forEach {(timeState, entities) ->
                 item {
-                    HorizontalDivider() // Add a divider for each group
-                    Text(text = timeState.name)
+                     // Add a divider for each group
+                    Text(text = timeState.name, fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold, fontSize = 18.sp,
+                        color = if (timeState.name == "Overdue") Color.Red else  MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(top = 20.dp))
+                    HorizontalDivider()
+                    Spacer(modifier = Modifier.height(20.dp))
                 }
                 items(entities) { entity ->
+
+                    val formattedDateTime by remember {
+                        derivedStateOf {
+                            if (entity.setDate != null) {
+                                DateTimeFormatter
+                                    .ofPattern("EEE, d MMM yyyy.  @h:mm a")
+                                    .format(entity.setDate)
+                            } else ""
+                        }
+                    }
+
                     TodoItem(
                         title = entity.title,
-                        timeLine = entity.setDate,
+                        timeLine = formattedDateTime,
                         listType = entity.listType,
                         checked = entity.isDone,
                         timeLineColor = if (entity.timeState == TimeState.Overdue) Color.Red else Color.Green,
                         onDelete = {todoViewModel.deleteTodo(entity)},
+                        hasRepeat = entity.repeat != "No repeat",
                         onEdit = {
                             todoViewModel.forEdit = true
-                            todoViewModel.updateEntryField(entity)
+                            todoViewModel.updateEntryFieldForEdit(entity)
                             todoViewModel.currentToDoEntry = entity
                             navController.navigate("new task")},
                         showListType = entity.listType != "Default",
-                        showtime = true,
-                        isChecked = {todoViewModel.onCheck(entity)},
+                        isEdge = if (entity == entities.first()) 1 else if (entity == entities.last()) 3 else 2,
+                        showtime = formattedDateTime != null,
+                        isChecked = {
+                            todoViewModel.currentToDoEntry = entity
+                            todoViewModel.onCheck(it)},
                     )
                 }
-
             }
         }
     }
@@ -292,9 +369,11 @@ fun TodoItem(
     checked: Boolean,
     onDelete: () -> Unit,
     onEdit: () -> Unit,
+    hasRepeat: Boolean = false,
     showListType: Boolean = false,
     showtime: Boolean = false,
     isChecked: (Boolean) -> Unit,
+    isEdge: Int = 2,
     timeLineColor: Color = Color.Green,
 ) {
     var expanded by rememberSaveable {mutableStateOf(false) }
@@ -308,8 +387,9 @@ fun TodoItem(
     )
     Card(modifier = modifier
         .clickable { expanded = !expanded },
-        shape = MaterialTheme.shapes.medium
-
+        shape = if (isEdge == 1) MaterialTheme.shapes.medium
+        else if (isEdge == 3) MaterialTheme.shapes.large
+        else MaterialTheme.shapes.small
     ) {
         Column(modifier = Modifier
             .fillMaxSize()
@@ -328,7 +408,7 @@ fun TodoItem(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically){
-                    Checkbox(checked = checked, onCheckedChange = isChecked)
+                    Checkbox(checked = checked, onCheckedChange = {isChecked(it)})
                     Text(
                         text = title,
                         style = MaterialTheme.typography.bodyLarge,
@@ -350,18 +430,27 @@ fun TodoItem(
                 }
             }
             Column(
-                modifier = modifier.padding(start = 50.dp, bottom = 5.dp)
+                modifier = modifier.padding(start = 50.dp, bottom = 5.dp, end = 50.dp)
             ) {
                 if (showtime) {
-                    Text(
-                        text = timeLine,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 5.dp),
-                        style = MaterialTheme.typography.bodyLarge,
-                        textAlign = TextAlign.Justify,
-                        color = timeLineColor
-                    )
+                    Row (modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(end = 20.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically){
+                        Text(
+                            text = timeLine,
+                            modifier = Modifier
+                                .fillMaxWidth(0.9f)
+                                .padding(horizontal = 5.dp),
+                            style = MaterialTheme.typography.bodyLarge,
+                            textAlign = TextAlign.Justify,
+                            color = timeLineColor
+                        )
+                        if (hasRepeat) {
+                            Icon(painter = painterResource(id = R.drawable.autorenew), contentDescription = null, tint = Color.Yellow)
+                        }
+                    }
                 }
                 if (showListType) {
                     Text(
@@ -379,9 +468,9 @@ fun TodoItem(
 }
 
 @Composable
-fun ScreenSetUp(mainViewModel: TodoViewModel, navController: NavController) {
+fun ScreenSetUp(mainViewModel: TodoViewModel, navController: NavController, context: Context) {
     val allProducts by mainViewModel.todos.observeAsState(listOf())
-    TodoScreen(todoViewModel = mainViewModel, allProducts = allProducts, navController = navController)
+    TodoScreen(todoViewModel = mainViewModel, allProducts = allProducts, navController = navController, context = context)
 }
 
 

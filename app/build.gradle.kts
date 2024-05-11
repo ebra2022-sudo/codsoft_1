@@ -10,7 +10,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.codsofttodo"
-        minSdk = 27
+        minSdk = 33
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
@@ -69,6 +69,9 @@ dependencies {
     annotationProcessor(libs.androidx.room.room.compiler)
     ksp(libs.androidx.room.room.compiler)
     implementation (libs.compose.material.dialogs.datetime)
+    implementation (libs.androidx.work.runtime)
+    implementation(libs.accompanist.permissions)
+
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

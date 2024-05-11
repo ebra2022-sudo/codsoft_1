@@ -4,12 +4,14 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.Room
+import androidx.room.TypeConverters
 
 
 @Database(
     entities = [ToDoEntry:: class],
-    version = 2
+    version = 3
 )
+@TypeConverters(LocalDateTimeConverter::class)
 
 abstract class TodoRoomDatabase: RoomDatabase()
 {

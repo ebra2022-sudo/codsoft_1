@@ -40,6 +40,14 @@ interface DataBaseOperations {
     @Query("SELECT * FROM Todos WHERE title =:title")
     fun selectToDoByTitle(title: String): List<ToDoEntry>
 
+    @Query("SELECT * FROM Todos WHERE listType=:listType")
+    fun selectToDoByListType(listType: String): List<ToDoEntry>
+
+    @Query("SELECT * FROM Todos WHERE isDone = :isDone")
+    fun getCompletedTodos(isDone: Boolean): List<ToDoEntry>
+
+
+
     // getting all todos
     @Query("SELECT * FROM Todos")
     fun getAllTodos(): LiveData<List<ToDoEntry>>

@@ -1,6 +1,9 @@
 package com.example.codsofttodo
 
 import android.app.Application
+import android.content.Context
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
@@ -15,8 +18,9 @@ create a NavHostController instance. This is responsible for
 managing the back stack and keeping track of which
 composable is the current destination.
  */
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Composable
-fun ScreenContainer() {
+fun ScreenContainer(context: Context = LocalContext.current) {
     val owner = LocalViewModelStoreOwner.current
     owner?.let {
         val viewModel: TodoViewModel = viewModel(
@@ -39,9 +43,8 @@ fun ScreenContainer() {
             NewTaskScreen(navController = navController, todoViewModel = viewModel)
         }
         composable("todo list Screen") {
-                ScreenSetUp(mainViewModel = viewModel, navController = navController)
+                ScreenSetUp(mainViewModel = viewModel, navController = navController, context = context)
             }
-            
         }
     }
 

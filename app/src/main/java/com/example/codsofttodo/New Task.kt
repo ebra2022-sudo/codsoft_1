@@ -64,10 +64,12 @@ import androidx.navigation.NavController
 import com.vanpra.composematerialdialogs.MaterialDialog
 import com.vanpra.composematerialdialogs.datetime.date.datepicker
 import com.vanpra.composematerialdialogs.rememberMaterialDialogState
+import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.util.Calendar
+import java.util.Locale
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -80,7 +82,9 @@ fun NewTaskScreen(navController: NavController, todoViewModel: TodoViewModel) {
         TopAppBar(
             title = {Text("New Task", fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold)},
             navigationIcon = {
-                IconButton(onClick = { navController.navigate("todo list screen") }) {
+                IconButton(onClick = {
+                    navController.navigate("todo list screen")
+                    todoViewModel.updateEntryFieldForAdd()}) {
                     Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
                 }
             },
@@ -93,12 +97,12 @@ fun NewTaskScreen(navController: NavController, todoViewModel: TodoViewModel) {
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
+                    navController.navigate("todo list Screen")
                     if (todoViewModel.forEdit) {
                         todoViewModel.onEdit()
                         todoViewModel.forEdit = false
                     }
                     else todoViewModel.insertTodo()
-                    navController.navigate("todo list Screen")
                 }
             ) {
                 Icon(imageVector = Icons.Default.Check, contentDescription = null)
@@ -124,7 +128,7 @@ fun NewTaskScreen(navController: NavController, todoViewModel: TodoViewModel) {
             val formattedDate by remember {
                 derivedStateOf {
                     DateTimeFormatter
-                        .ofPattern("MMM dd yyyy")
+                        .ofPattern("EEE, d MMM yyyy")
                         .format(pickedDate)
                 }
             }
@@ -133,7 +137,7 @@ fun NewTaskScreen(navController: NavController, todoViewModel: TodoViewModel) {
                 dialogState = dateDialogState,
                 buttons = {
                     positiveButton(text = "Ok") {
-                        todoViewModel.date = formattedDate
+                        todoViewModel.formatDate = formattedDate
                         LocalDate.of(pickedDate.year, pickedDate.month, pickedDate.dayOfMonth)
                     }
                     negativeButton(text = "Cancel")
@@ -145,7 +149,8 @@ fun NewTaskScreen(navController: NavController, todoViewModel: TodoViewModel) {
                 ) {
                     localDate ->
                     pickedDate = localDate
-                    todoViewModel.pickedDateTime = todoViewModel.mergeTimeSndDate(date = localDate, time = LocalTime.now())
+                    todoViewModel.pickedDateTime = todoViewModel.mergeTimeAndDate(date = localDate, time = LocalTime.now())
+
                 }
             }
 
@@ -165,13 +170,14 @@ fun NewTaskScreen(navController: NavController, todoViewModel: TodoViewModel) {
                     onConfirm = {
                         setTime.value = LocalTime.of(timePickerState.hour, timePickerState.minute)
                         todoViewModel.pickedDateTime =
-                            todoViewModel.mergeTimeSndDate(date = pickedDate, time =LocalTime.of(timePickerState.hour, timePickerState.minute))
+                            todoViewModel.mergeTimeAndDate(date = pickedDate, time =LocalTime.of(timePickerState.hour, timePickerState.minute))
                         showTimePicker.value = false },
                     content = {displayMode ->
                         val calendar = Calendar.getInstance()
                         calendar.set(Calendar.HOUR_OF_DAY, timePickerState.hour)
                         calendar.set(Calendar.MINUTE, timePickerState.minute)
-                        todoViewModel.time = calendar.time.time.toTime()
+                        val formattedTime = SimpleDateFormat("h:mm a", Locale.ENGLISH).format(calendar.time)
+                        todoViewModel.formatTime = formattedTime
                          if (displayMode == DisplayMode.Input) {
                             TimePicker(state = timePickerState)
                         } else {
@@ -210,7 +216,7 @@ fun NewTaskScreen(navController: NavController, todoViewModel: TodoViewModel) {
                     verticalAlignment = Alignment.CenterVertically){
                     Column(modifier = Modifier.weight(0.9f)) {
                         Text(
-                            text = todoViewModel.date,
+                            text = todoViewModel.formatDate,
                             modifier = Modifier.fillMaxWidth(),
                             color = dateColor
                         )
@@ -222,15 +228,15 @@ fun NewTaskScreen(navController: NavController, todoViewModel: TodoViewModel) {
                             contentDescription = null,
                             modifier = Modifier.weight(0.1f))
                     }
-                    if (todoViewModel.date.last().isDigit()) {
-                        IconButton(onClick = {todoViewModel.date = "Date not set"} ) {
+                    if (todoViewModel.formatDate.last().isDigit()) {
+                        IconButton(onClick = {todoViewModel.formatDate = "Date not set"} ) {
                             Icon(painter = painterResource(id = R.drawable.close_circle),
                                 contentDescription = null,
                                 modifier = Modifier.weight(0.1f))
                         }
                     }
                 }
-                if (todoViewModel.date.last().isDigit()) {
+                if (todoViewModel.formatDate.last().isDigit()) {
                     Row(modifier = Modifier
                         .fillMaxWidth()
                         .clickable { showTimePicker.value = true },
@@ -238,7 +244,7 @@ fun NewTaskScreen(navController: NavController, todoViewModel: TodoViewModel) {
                         verticalAlignment = Alignment.CenterVertically){
                         Column(modifier = Modifier.weight(0.9f)) {
                             Text(
-                                text = todoViewModel.time,
+                                text = todoViewModel.formatTime,
                                 modifier = Modifier.fillMaxWidth(),
                                 color = timeColor
                             )
@@ -250,8 +256,10 @@ fun NewTaskScreen(navController: NavController, todoViewModel: TodoViewModel) {
                                 contentDescription = null,
                                 modifier = Modifier.weight(0.1f))
                         }
-                        if (todoViewModel.time.first().isDigit()) {
-                            IconButton(onClick = {todoViewModel.time = "Time not set"} ) {
+                        if (todoViewModel.formatTime.first().isDigit()) {
+                            IconButton(onClick = {
+                                todoViewModel.formatTime = "Time not set"
+                            todoViewModel.pickedDateTime = null} ) {
                                 Icon(painter = painterResource(id = R.drawable.close_circle),
                                     contentDescription = null,
                                     modifier = Modifier.weight(0.1f))
@@ -263,7 +271,7 @@ fun NewTaskScreen(navController: NavController, todoViewModel: TodoViewModel) {
                 Text(text = "No notification if date not set")
 
             }
-            if (todoViewModel.date.last().isDigit()) {
+            if (todoViewModel.formatDate.last().isDigit()) {
                 Column {
                     Text(text = "Repeats", fontWeight = FontWeight.Medium)
                     Row(
@@ -293,7 +301,6 @@ fun NewTaskScreen(navController: NavController, todoViewModel: TodoViewModel) {
                         }
                     }
                 }
-
             }
             Column {
                 Text(text = "Add to List", fontWeight = FontWeight.Medium)
@@ -433,11 +440,10 @@ fun NewListDialogue(
     CustomDialog(
         showDialog = showDialogue,
         onDismissRequest = onDismiss) {
-        Box(modifier = Modifier
-            .fillMaxWidth()
-            .height(250.dp)
+        Box(modifier = Modifier.background(Color.White)
+            .fillMaxWidth().height(200.dp)
             .padding(20.dp)) {
-            Text(text = "New List", modifier = Modifier.align(Alignment.TopStart))
+            Text(text = "New List", modifier = Modifier.align(Alignment.TopStart), color = Color.Blue)
             TextField(
                 value = value,
                 onValueChange = onValueChange,
@@ -454,8 +460,8 @@ fun NewListDialogue(
             Row(modifier = Modifier.align(Alignment.BottomEnd),
                 horizontalArrangement = Arrangement.spacedBy(20.dp),
                 verticalAlignment = Alignment.CenterVertically) {
-                Text(text = "CANCEL", modifier = Modifier.clickable { onCancel()})
-                Text(text = "ADD", modifier = Modifier.clickable(onClick = {onAdd()}))
+                Text(text = "CANCEL", modifier = Modifier.clickable { onCancel()}, color = Color.Red)
+                Text(text = "ADD", modifier = Modifier.clickable(onClick = {onAdd()}), color = Color.Green)
             }
         }
     }
