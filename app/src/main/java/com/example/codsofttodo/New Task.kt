@@ -4,36 +4,24 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.DisplayMode
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TimeInput
@@ -42,7 +30,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -55,17 +42,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavController
 import com.vanpra.composematerialdialogs.MaterialDialog
 import com.vanpra.composematerialdialogs.datetime.date.datepicker
 import com.vanpra.composematerialdialogs.rememberMaterialDialogState
 import java.text.SimpleDateFormat
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.util.Calendar
@@ -97,12 +82,13 @@ fun NewTaskScreen(navController: NavController, todoViewModel: TodoViewModel) {
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    navController.navigate("todo list Screen")
                     if (todoViewModel.forEdit) {
                         todoViewModel.onEdit()
                         todoViewModel.forEdit = false
                     }
                     else todoViewModel.insertTodo()
+                    navController.navigate("todo list Screen")
+
                 }
             ) {
                 Icon(imageVector = Icons.Default.Check, contentDescription = null)
@@ -114,7 +100,6 @@ fun NewTaskScreen(navController: NavController, todoViewModel: TodoViewModel) {
             .padding(it)
             .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(40.dp)) {
-
 
 
             val dateDialogState = rememberMaterialDialogState()
@@ -144,13 +129,12 @@ fun NewTaskScreen(navController: NavController, todoViewModel: TodoViewModel) {
                 }
             ) {
                 datepicker(
-                    initialDate = LocalDate.now(),
+                    initialDate = if (todoViewModel.forEdit) todoViewModel.pickedDateTime?.toLocalDate()?: LocalDate.now() else LocalDate.now(),
                     title = "Pick a date"
                 ) {
                     localDate ->
                     pickedDate = localDate
-                    todoViewModel.pickedDateTime = todoViewModel.mergeTimeAndDate(date = localDate, time = LocalTime.now())
-
+                    todoViewModel._pickedDateTime = LocalDateTime.of(localDate, if (todoViewModel.forEdit) todoViewModel.pickedDateTime?.toLocalTime()?: LocalTime.now() else LocalTime.now())
                 }
             }
 
@@ -169,9 +153,9 @@ fun NewTaskScreen(navController: NavController, todoViewModel: TodoViewModel) {
                     onCancel = { showTimePicker.value = false },
                     onConfirm = {
                         setTime.value = LocalTime.of(timePickerState.hour, timePickerState.minute)
-                        todoViewModel.pickedDateTime =
-                            todoViewModel.mergeTimeAndDate(date = pickedDate, time =LocalTime.of(timePickerState.hour, timePickerState.minute))
+                        todoViewModel._pickedDateTime = LocalDateTime.of(if (todoViewModel.forEdit) todoViewModel.pickedDateTime?.toLocalDate()?: LocalDate.now() else LocalDate.now(), LocalTime.of(timePickerState.hour, timePickerState.minute))
                         showTimePicker.value = false },
+
                     content = {displayMode ->
                         val calendar = Calendar.getInstance()
                         calendar.set(Calendar.HOUR_OF_DAY, timePickerState.hour)
@@ -259,7 +243,7 @@ fun NewTaskScreen(navController: NavController, todoViewModel: TodoViewModel) {
                         if (todoViewModel.formatTime.first().isDigit()) {
                             IconButton(onClick = {
                                 todoViewModel.formatTime = "Time not set"
-                            todoViewModel.pickedDateTime = null} ) {
+                            todoViewModel._pickedDateTime = null} ) {
                                 Icon(painter = painterResource(id = R.drawable.close_circle),
                                     contentDescription = null,
                                     modifier = Modifier.weight(0.1f))
@@ -340,193 +324,6 @@ fun NewTaskScreen(navController: NavController, todoViewModel: TodoViewModel) {
     }
 }
 
-
-
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun TimePickerDialog(
-    title: String = "Select Time",
-    onCancel: () -> Unit,
-    onConfirm: () -> Unit,
-    content: @Composable (DisplayMode) -> Unit,
-) {
-    val displayModeState = remember { mutableStateOf(DisplayMode.Input) }
-
-    Dialog(
-        onDismissRequest = onCancel,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-    ) {
-        Surface(
-            shape = MaterialTheme.shapes.extraLarge,
-            tonalElevation = 6.dp,
-            modifier = Modifier
-                .width(IntrinsicSize.Min)
-                .height(IntrinsicSize.Min)
-                .background(
-                    shape = MaterialTheme.shapes.extraLarge,
-                    color = MaterialTheme.colorScheme.surface
-                )
-        ) {
-            Column(
-                modifier = Modifier.padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 20.dp),
-                    text = title,
-                    style = MaterialTheme.typography.labelMedium
-                )
-                content(displayModeState.value)
-                Row(
-                    modifier = Modifier
-                        .height(40.dp)
-                        .fillMaxWidth()
-                ) {
-                    DisplayModeToggleButton(displayModeState = displayModeState)
-
-                    Spacer(modifier = Modifier.weight(1F))
-                    TextButton(onClick = onCancel) {
-                        Text("Cancel")
-                    }
-                    TextButton(onClick = onConfirm) {
-                        Text("OK")
-                    }
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun DisplayModeToggleButton(
-    displayModeState: MutableState<DisplayMode>,
-    modifier: Modifier = Modifier,
-) {
-    when (displayModeState.value) {
-        DisplayMode.Picker -> IconButton(
-            modifier = modifier,
-            onClick = { displayModeState.value = DisplayMode.Input },
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.clock_outline),
-                contentDescription = "time_picker_button_select_input_mode"
-            )
-        }
-        DisplayMode.Input -> IconButton(
-            modifier = modifier,
-            onClick = { displayModeState.value = DisplayMode.Picker },
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.keyboard),
-                contentDescription = "time_picker_button_select_picker_mode"
-            )
-        }
-    }
-}
-
-@Composable
-fun NewListDialogue(
-    showDialogue: Boolean,
-    onDismiss: ()-> Unit,
-    value: String,
-    onValueChange: (String) -> Unit,
-    onAdd: () -> Unit,
-    onCancel: () -> Unit
-) {
-    CustomDialog(
-        showDialog = showDialogue,
-        onDismissRequest = onDismiss) {
-        Box(modifier = Modifier.background(Color.White)
-            .fillMaxWidth().height(200.dp)
-            .padding(20.dp)) {
-            Text(text = "New List", modifier = Modifier.align(Alignment.TopStart), color = Color.Blue)
-            TextField(
-                value = value,
-                onValueChange = onValueChange,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.Center),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent
-                ),
-                keyboardActions = KeyboardActions(onDone = {onAdd()}),
-                keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
-                label = {Text(text = "Enter new list")})
-            Row(modifier = Modifier.align(Alignment.BottomEnd),
-                horizontalArrangement = Arrangement.spacedBy(20.dp),
-                verticalAlignment = Alignment.CenterVertically) {
-                Text(text = "CANCEL", modifier = Modifier.clickable { onCancel()}, color = Color.Red)
-                Text(text = "ADD", modifier = Modifier.clickable(onClick = {onAdd()}), color = Color.Green)
-            }
-        }
-    }
-}
-
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun CustomDropDownMenu(
-    modifier: Modifier = Modifier,
-    expanded: Boolean,
-    onExpandedChange: (Boolean) -> Unit,
-    selectedList: String,
-    onDismissedRequest: ()->Unit,
-    options: MutableList<String>,
-    addLeadingIcon: Boolean = true,
-    topComposable: @Composable () -> Unit = {},
-    bottomComposable: @Composable () -> Unit = {},
-    attachedCompose: @Composable () -> Unit = {
-        Text(
-            text = selectedList,
-            modifier = Modifier
-                .fillMaxWidth()
-        )
-    },
-    onItemClicked: (String)-> Unit
-) {
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = onExpandedChange,
-        modifier = modifier
-    ) {
-        Box(modifier = Modifier.menuAnchor()) {
-            attachedCompose()
-        }
-        ExposedDropdownMenu(expanded = expanded,
-            onDismissRequest = onDismissedRequest,
-            modifier = Modifier
-                .background(MaterialTheme.colorScheme.secondaryContainer)
-                .width(200.dp)) {
-            topComposable()
-            options.toSet().forEach { option: String ->
-                DropdownMenuItem(
-                    text = { Row(horizontalArrangement = Arrangement.spacedBy(5.dp),
-                        verticalAlignment = Alignment.CenterVertically, modifier = Modifier
-                            .fillMaxSize()
-                            .background(color = if (selectedList == option) MaterialTheme.colorScheme.secondary else Color.Transparent)) {
-                        if (addLeadingIcon) Icon(painter = painterResource(id = R.drawable.menu), contentDescription =null )
-                        Text(text = option, fontWeight = FontWeight.Medium)
-                    } },
-                    onClick = {
-                        onItemClicked(option)
-                        onDismissedRequest()
-                    },
-                    colors =
-                    if (selectedList == option)
-                        MenuDefaults.itemColors(textColor = MaterialTheme.colorScheme.onSecondary)
-                    else MenuDefaults.itemColors(MaterialTheme.colorScheme.secondary)
-                )
-                HorizontalDivider(modifier = Modifier.fillMaxWidth())
-            }
-            bottomComposable()
-        }
-    }
-}
 
 
 

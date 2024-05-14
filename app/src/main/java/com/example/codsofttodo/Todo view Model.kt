@@ -31,10 +31,14 @@ class TodoViewModel(application: Application): ViewModel(){
     var showAddListDialogueOnHome by mutableStateOf(false)
     var showMoreAction by mutableStateOf(false)
     var showRepeatMenu by mutableStateOf(false)
+    var currentSharedContent by mutableStateOf("")
+    var currentDeletedList by mutableStateOf("")
 
     var showSearchBar by  mutableStateOf(false)
     var groupedItem by  mutableStateOf<List<ToDoEntry>>(emptyList())
     var forFilter by mutableStateOf(false)
+    var forShare by mutableStateOf(false)
+    var forDeleteList by mutableStateOf(false)
     var forComplete by mutableStateOf(false)
 
     val onShowSearchBar = {showSearchBar = !showSearchBar}
@@ -65,17 +69,27 @@ class TodoViewModel(application: Application): ViewModel(){
         _listType.value = currentList
         saveListType(currentList)
     }
+    fun onRemoveListMenu() {
+        val currentList = _listType.value.toMutableList()
+        currentList.remove(currentDeletedList)
+        _listType.value = currentList
+        todos.value?.forEach { todo ->
+            if (todo.listType == currentDeletedList) deleteTodo(todo)
+        }
+        saveListType(currentList)
+    }
 
 
     private val _repeats =
         MutableStateFlow(mutableListOf("No repeat", "Once a Day",
             "Once a week", "Once a Month", "Once a Year"))
+
     val repeats: StateFlow<MutableList<String>>
         get() = _repeats.asStateFlow()
 
     private val _actions =
-        MutableStateFlow(mutableListOf("Task Lists", "Add in Batch Mode","Remove Ads",
-            "More Apps", "Send feedback", "Follow us","Invite friends to the app", "Settings"))
+        MutableStateFlow(mutableListOf("Task Lists",
+            "More Apps"))
     val actions: StateFlow<MutableList<String>>
         get() = _actions.asStateFlow()
 
@@ -83,15 +97,15 @@ class TodoViewModel(application: Application): ViewModel(){
     var selectedListTypeOnHome by mutableStateOf("All Lists")
     var selectedRepeatType by mutableStateOf(_repeats.value[0])
     var selectedActionType by mutableStateOf(_actions.value[0])
-    var pickedDateTime by mutableStateOf<LocalDateTime?>(null)
+    var _pickedDateTime by mutableStateOf<LocalDateTime?>(null)
+    val pickedDateTime: LocalDateTime?
+        get() = _pickedDateTime
 
 
-
-
-    val onShowListMenuHome = {flag: Boolean -> showListMenuOnHome = !showListMenuOnHome}
-    val onShowListMenuNewTask = {flag: Boolean -> showListMenuOnNewTask = !showListMenuOnNewTask}
-    val onShowRepeatMenu = {flag: Boolean -> showRepeatMenu = !showRepeatMenu}
-    val onShowMoreAction = {flag: Boolean -> showMoreAction = !showMoreAction}
+    val onShowListMenuHome = {_: Boolean -> showListMenuOnHome = !showListMenuOnHome}
+    val onShowListMenuNewTask = {_: Boolean -> showListMenuOnNewTask = !showListMenuOnNewTask}
+    val onShowRepeatMenu = {_: Boolean -> showRepeatMenu = !showRepeatMenu}
+    val onShowMoreAction = {_: Boolean -> showMoreAction = !showMoreAction}
     val onShowAddListDialogOnNewTask = {showAddListDialogueOnNewTask =!showAddListDialogueOnNewTask}
     val onShowAddListDialogOnHome = {showAddListDialogueOnHome =!showAddListDialogueOnHome}
 
@@ -137,31 +151,34 @@ class TodoViewModel(application: Application): ViewModel(){
     fun insertTodo() {
         val newToDoEntry = ToDoEntry(
             title = title,
-            setDate = pickedDateTime,
+            setDate = _pickedDateTime,
             isDone = false,
             repeat = selectedRepeatType,
             listType = selectedListTypeOnNewTask,
-            timeState = timeState(pickedDateTime?.toLocalDate())
+            timeState = timeState(_pickedDateTime?.toLocalDate())
             )
         repository.insertTodo(newToDoEntry)
         updateEntryFieldForAdd()
     }
 
     private fun timeState(date: LocalDate?): TimeState {
+        val thisWeekEndDate = LocalDate.now().plusWeeks(1)
+        val nextWeekStartDate = LocalDate.now().plusWeeks(1)
+        val nextWeekEndDate = LocalDate.now().plusWeeks(2)
+
         return when {
             date == null -> TimeState.NoDate
             date.isEqual(LocalDate.now()) -> TimeState.Today
             date.isEqual(LocalDate.now().plusDays(1)) -> TimeState.Tomorrow
-            date.isAfter(LocalDate.now()) && date.isBefore(LocalDate.now().plusWeeks(1)) -> TimeState.NextWeek
+            date.isAfter(LocalDate.now()) && date.isBefore(thisWeekEndDate) -> TimeState.ThisWeek
+            date.isAfter(nextWeekStartDate) && date.isBefore(nextWeekEndDate) -> TimeState.NextWeek
             date.isAfter(LocalDate.now()) && date.isBefore(LocalDate.now().plusMonths(1)) -> TimeState.NextMonth
             date.isAfter(LocalDate.now()) -> TimeState.Later
             else -> TimeState.Overdue
         }
     }
 
-    fun mergeTimeAndDate(date: LocalDate? = null, time: LocalTime? = null): LocalDateTime? {
-        return LocalDateTime.of(date, time)
-    }
+
 
     fun deleteTodo(toDoEntry: ToDoEntry) {
         repository.deleteTodo(toDoEntry)
@@ -169,36 +186,36 @@ class TodoViewModel(application: Application): ViewModel(){
     fun updateEntryFieldForEdit(toDoEntry: ToDoEntry) {
         _title = toDoEntry.title
         selectedRepeatType = toDoEntry.repeat
-        pickedDateTime = toDoEntry.setDate
+        _pickedDateTime = toDoEntry.setDate
         selectedListTypeOnNewTask = toDoEntry.listType
-        formatDate = if (pickedDateTime == null) "Date not set"
-        else DateTimeFormatter.ofPattern("EEE, d MMM yyyy").format(pickedDateTime)
-        formatTime = if (pickedDateTime == null) "Time not set"
-        else DateTimeFormatter.ofPattern("h:mm a").format(pickedDateTime)
+        formatDate = if (_pickedDateTime == null) "Date not set"
+        else DateTimeFormatter.ofPattern("EEE, d MMM yyyy").format(_pickedDateTime)
+        formatTime = if (_pickedDateTime == null) "Time not set"
+        else DateTimeFormatter.ofPattern("h:mm a").format(_pickedDateTime)
     }
+
     fun updateEntryFieldForAdd() {
         _title = ""
         selectedRepeatType = repeats.value[0]
-        pickedDateTime = null
+        _pickedDateTime = null
         selectedListTypeOnNewTask = listType.value[0]
-        formatDate = if (pickedDateTime == null) "Date not set"
-        else DateTimeFormatter.ofPattern("EEE, d MMM yyyy").format(pickedDateTime)
-        formatTime = if (pickedDateTime == null) "Time not set"
-        else DateTimeFormatter.ofPattern("h:mm a").format(pickedDateTime)
+        formatDate = if (_pickedDateTime == null) "Date not set"
+        else DateTimeFormatter.ofPattern("EEE, d MMM yyyy").format(_pickedDateTime)
+        formatTime = if (_pickedDateTime == null) "Time not set"
+        else DateTimeFormatter.ofPattern("h:mm a").format(_pickedDateTime)
     }
     fun onEdit() {
         repository.updateEntityField(
             entityId = currentToDoEntry.id,
             title = title,
-            setDate = pickedDateTime,
-            timeState= timeState(pickedDateTime?.toLocalDate()),
+            setDate = _pickedDateTime,
+            timeState= timeState(_pickedDateTime?.toLocalDate()),
             repeat = selectedRepeatType,
             listType = selectedListTypeOnNewTask,
             isDone = currentToDoEntry.isDone
         )
         updateEntryFieldForAdd()
     }
-
     fun searchByTitle(title: String): MutableLiveData<List<ToDoEntry>> {
         repository.searchByName(title)
         return repository.searchResults

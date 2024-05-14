@@ -31,7 +31,7 @@ data class ToDoEntry(
 
 
 enum class TimeState {
-    NoDate, Overdue,Today, Tomorrow, NextWeek, NextMonth, Later
+    NoDate, Overdue,Today, Tomorrow,ThisWeek, NextWeek, NextMonth, Later
 }
 
 class LocalDateTimeConverter {

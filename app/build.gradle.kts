@@ -4,13 +4,14 @@ plugins {
     alias(libs.plugins.devtoolsKsp)
 }
 
+
 android {
     namespace = "com.example.codsofttodo"
     compileSdk = 34
 
     defaultConfig {
         applicationId = "com.example.codsofttodo"
-        minSdk = 33
+        minSdk = 27
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"

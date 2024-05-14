@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">CodSoft Todo</string>
+    <string name="description">CodSoft Todo</string>
+
 </resources>
