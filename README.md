@@ -45,7 +45,7 @@ Clone the repository:
 
 sh
 Copy code
-git clone https://github.com/yourusername/yourproject.git
+https://github.com/ebra2022-sudo/CODSOFT_AD_TODO
 Open the project in Android Studio:
 
 File > Open > Select the cloned project directory.
