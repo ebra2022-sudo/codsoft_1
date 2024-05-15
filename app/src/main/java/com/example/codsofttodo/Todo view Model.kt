@@ -194,6 +194,7 @@ class TodoViewModel(application: Application): ViewModel(){
         else DateTimeFormatter.ofPattern("h:mm a").format(_pickedDateTime)
     }
 
+
     fun updateEntryFieldForAdd() {
         _title = ""
         selectedRepeatType = repeats.value[0]

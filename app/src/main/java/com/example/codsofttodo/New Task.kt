@@ -1,5 +1,7 @@
 package com.example.codsofttodo
 
+import android.nfc.Tag
+import android.util.Log
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -134,17 +136,20 @@ fun NewTaskScreen(navController: NavController, todoViewModel: TodoViewModel) {
                 ) {
                     localDate ->
                     pickedDate = localDate
-                    todoViewModel._pickedDateTime = LocalDateTime.of(localDate, if (todoViewModel.forEdit) todoViewModel.pickedDateTime?.toLocalTime()?: LocalTime.now() else LocalTime.now())
+                    todoViewModel._pickedDateTime = LocalDateTime.of(localDate,
+                        if (todoViewModel.forEdit) todoViewModel.pickedDateTime?.toLocalTime()?:
+                        LocalTime.now() else LocalTime.now())
                 }
             }
-
+            // sample of  the given value of the smape
             val timePickerState = rememberTimePickerState(is24Hour = false)
             val showTimePicker = remember { mutableStateOf(false) }
             val currentTime = remember { LocalTime.now() }
             val setTime = remember { mutableStateOf<LocalTime?>(null) }
             val timeColor by animateColorAsState(
                 targetValue = if (dateColor == Color.Red) Color.Red
-                else if ((setTime.value != null && currentTime.isAfter(setTime.value)) && currentDate.isEqual(pickedDate)) Color.Red
+                else if ((setTime.value != null && currentTime.isAfter(setTime.value))
+                    && currentDate.isEqual(pickedDate)) Color.Red
                 else MaterialTheme.colorScheme.onPrimaryContainer,
                 label = "date color indicator"
             )
@@ -153,14 +158,15 @@ fun NewTaskScreen(navController: NavController, todoViewModel: TodoViewModel) {
                     onCancel = { showTimePicker.value = false },
                     onConfirm = {
                         setTime.value = LocalTime.of(timePickerState.hour, timePickerState.minute)
-                        todoViewModel._pickedDateTime = LocalDateTime.of(if (todoViewModel.forEdit) todoViewModel.pickedDateTime?.toLocalDate()?: LocalDate.now() else LocalDate.now(), LocalTime.of(timePickerState.hour, timePickerState.minute))
+                        todoViewModel._pickedDateTime = LocalDateTime.of(if (todoViewModel.forEdit)
+                            todoViewModel.pickedDateTime?.toLocalDate()?: LocalDate.now()
+                        else pickedDate, LocalTime.of(timePickerState.hour, timePickerState.minute))
                         showTimePicker.value = false },
-
                     content = {displayMode ->
                         val calendar = Calendar.getInstance()
                         calendar.set(Calendar.HOUR_OF_DAY, timePickerState.hour)
                         calendar.set(Calendar.MINUTE, timePickerState.minute)
-                        val formattedTime = SimpleDateFormat("h:mm a", Locale.ENGLISH).format(calendar.time)
+                        val formattedTime = SimpleDateFormat("h:mm a",Locale.ENGLISH).format(calendar.time)
                         todoViewModel.formatTime = formattedTime
                          if (displayMode == DisplayMode.Input) {
                             TimePicker(state = timePickerState)

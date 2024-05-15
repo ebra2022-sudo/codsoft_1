@@ -200,6 +200,7 @@ fun TodoScreen(
                         }
                     }
                 },
+                // sample of the given value of the sample
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary),
